@@ -1,0 +1,32 @@
+services:
+  # Message Broker: RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: onboarding_broker
+    ports:
+      - "5672:5672" # Communication port
+      - "15672:15672" # Dashboard (guest/guest)
+
+  # Producer: FastAPI Web Server
+  api:
+    build: .
+    container_name: onboarding_api
+    ports: 
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
+    depends_on:
+      - rabbitmq
+    volumes:
+      - .:/app
+  # Consumer: Celery Background Worker
+  worker:
+    build: .
+    container_name: onboarding_worker
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
+    depends_on:
+      - rabbitmq
+    volumes:
+      - .:/app
