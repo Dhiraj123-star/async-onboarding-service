@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Celery
+celerybeat-schedule
+*.pid
+
+# Docker
+.docker/
+
+# Environment / Secrets
+.env
+.secrets
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
