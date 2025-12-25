@@ -7,6 +7,13 @@ services:
       - "5672:5672" # Communication port
       - "15672:15672" # Dashboard (guest/guest)
 
+# REDIS SERVICE ADDED
+  redis:
+    image: redis:latest
+    container_name: onboarding_results
+    ports:
+      - "6380:6379"
+
   # Producer: FastAPI Web Server
   api:
     build: .
@@ -15,8 +22,10 @@ services:
       - "8000:8000"
     environment:
       - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - rabbitmq
+      - redis
     volumes:
       - .:/app
   # Consumer: Celery Background Worker
@@ -26,7 +35,9 @@ services:
     command: celery -A app.tasks.celery_app worker --loglevel=info
     environment:
       - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - rabbitmq
+      - redis
     volumes:
       - .:/app
