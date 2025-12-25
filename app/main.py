@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from .tasks import process_onboarding_workflow
+from celery.result import AsyncResult
+from .tasks import process_onboarding_workflow,celery_app
 
 app = FastAPI(
     title= "Async Onboarding Service",
@@ -25,5 +26,15 @@ def onboard_user(user:UserSignup):
 
     return {
         "message":"Onboarding workflow initialized successfully.",
-        "task_id":task.id
+        "task_id":task.id,
+        "status":"Processing"
+    }
+# Status Check Endpoint
+@app.get("/status/{task_id}")
+def get_task_status(task_id: str):
+    task_result = AsyncResult(task_id, app=celery_app)
+    return {
+        "task_id":task_id,
+        "status":task_result.status, # PENDING, STARTED, SUCCESS, FAILURE
+        "task_result":task_result.result if task_result.ready() else None
     }
