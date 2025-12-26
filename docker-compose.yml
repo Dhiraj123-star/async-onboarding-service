@@ -41,3 +41,18 @@ services:
       - redis
     volumes:
       - .:/app
+  # Flower: Celery Monitoring Tool
+  dashboard:
+    build: .
+    container_name: onboarding_dashboard
+    # command to start flower,pointing to our Celery app
+    command: celery -A app.tasks.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - rabbitmq
+      - redis
+      - worker
