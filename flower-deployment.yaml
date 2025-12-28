@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: onboarding-flower
+
+spec:
+  replicas: 1
+  selector: 
+    matchLabels:
+      app: flower 
+  
+  template:
+    metadata:
+      labels:
+        app: flower
+
+    spec:
+      containers:
+        - name: flower
+          image: async-app:latest
+          imagePullPolicy: Never
+          # command to start flower pointing to our app
+          command: ["celery","-A","app.tasks.celery_app","flower","--port=5555"]
+          ports:
+          - containerPort: 5555
+          env:
+          - name: CELERY_BROKER_URL
+            value: "pyamqp://guest@rabbitmq:5672//"
+          - name: CELERY_RESULT_BACKEND
+            value: "redis://redis:6379/0"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: flower-service
+spec:
+  type: NodePort
+  ports:
+  - port: 5555
+    targetPort: 5555
+    nodePort: 30002 # Access flower at this Port
+  selector:
+    app: flower
