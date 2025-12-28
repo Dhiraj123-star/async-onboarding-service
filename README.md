@@ -3,24 +3,23 @@
 
 A high-performance, asynchronous user onboarding microservice built with **FastAPI**, **RabbitMQ**, **Celery**, and **Redis**.
 
-This project demonstrates how to offload heavy, time-consuming tasks (like PDF generation and email dispatching) to background workers, ensuring the API remains responsive while allowing the client to track the task's progress.
+This project demonstrates how to offload heavy, time-consuming tasks to background workers, ensuring the API remains responsive while allowing the client to track progress.
 
 ## 🚀 The Architecture
 
 * **FastAPI:** The "Front Desk." Receives signups and provides status updates.
 * **RabbitMQ:** The "Message Broker." Safely queues onboarding tasks.
-* **Celery:** The "Worker." Handles the heavy lifting (PDF/Email simulation).
+* **Celery:** The "Worker." Handles heavy lifting with built-in **Exponential Backoff** retries.
 * **Redis:** The "Result Backend." Stores the final outcome and status of each task.
-* **Docker Compose:** Orchestrates all services into a single, isolated network.
+* **Flower:** The "Control Tower." Real-time monitoring dashboard for task health.
+* **Kubernetes:** Production-ready orchestration using **Minikube**.
 
 ## 🛠️ Tech Stack
 
-* **Language:** Python
 * **Framework:** FastAPI
-* **Task Queue:** Celery
-* **Broker:** RabbitMQ
-* **Result Store:** Redis
-* **Infrastructure:** Docker & Docker Compose
+* **Task Queue:** Celery (with `amqp` & `redis` transport)
+* **Infrastructure:** Docker, Docker Compose, & Kubernetes (k8s)
+* **Monitoring:** Flower
 
 ---
 
@@ -29,12 +28,15 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 ```text
 async-onboarding-service/
 ├── app/
-│   ├── main.py        # API Endpoints & Task Status Logic
-│   └── tasks.py       # Celery Worker Tasks & Backend Config
-├── .gitignore         # Optimized for Python/Docker
-├── Dockerfile         # Unified environment for API/Worker
-├── docker-compose.yml # 4-Service Orchestration
-└── requirements.txt   # Project dependencies (FastAPI, Celery, Redis)
+│   ├── main.py            # API Endpoints & Task Status Logic
+│   └── tasks.py           # Celery Worker, Retry Logic & Backend Config
+├── k8s/                   # Kubernetes Manifests
+│   ├── rabbitmq-deployment.yaml
+│   ├── redis-deployment.yaml
+│   └── app-deployment.yaml
+├── Dockerfile             # Unified environment for API/Worker
+├── docker-compose.yml     # 5-Service Orchestration (API, Worker, Redis, Rabbit, Flower)
+└── requirements.txt       # Dependencies
 
 ```
 
@@ -42,39 +44,33 @@ async-onboarding-service/
 
 ## 🏃 How to Run
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/async-onboarding-service.git
-cd async-onboarding-service
-
-```
-
-### 2. Start the services
+### Option A: Docker Compose (Local Development)
 
 ```bash
 docker-compose up --build
 
 ```
 
-### 3. Test the Workflow
+* **API:** [http://localhost:8000/docs](https://www.google.com/search?q=http://localhost:8000/docs)
+* **Flower Dashboard:** [http://localhost:5555](https://www.google.com/search?q=http://localhost:5555)
 
-1. **Trigger Onboarding:** Go to [http://localhost:8000/docs](https://www.google.com/search?q=http://localhost:8000/docs) and `POST` to `/onboard`.
-2. **Copy Task ID:** The API will return a unique `task_id`.
-3. **Check Progress:** `GET` from `/status/{task_id}` to see if the worker is `PENDING` or `SUCCESS`.
+### Option B: Kubernetes (Minikube)
 
-### 4. Monitor Infrastructure
+```bash
+minikube start
+eval $(minikube docker-env)
+docker build -t async-app:latest .
+kubectl apply -f k8s/
 
-* **RabbitMQ Dashboard:** [http://localhost:15672](https://www.google.com/search?q=http://localhost:15672) (guest/guest)
-* **Redis:** Accessible internally on port `6379`.
+```
 
 ---
 
 ## 📝 Key Features
 
-* **Asynchronous Processing:** API responses are returned in milliseconds.
-* **State Persistence:** Task results are stored in Redis, allowing for status polling.
-* **Fault Tolerance:** Tasks persist in RabbitMQ even if the worker service is temporarily down.
-* **Scalability:** Easily scale workers using `docker-compose up --scale worker=3`.
+* **Exponential Backoff Retries:** Tasks automatically retry on failure (e.g., API timeouts) with increasing wait times.
+* **Fault Tolerance:** Implemented `acks_late=True` to ensure tasks aren't lost if a worker crashes.
+* **Real-time Monitoring:** Integrated Flower to visualize task success rates and retry counts.
+* **K8s Ready:** Optimized manifests with Resource Limits and NodePort services.
 
 ---
