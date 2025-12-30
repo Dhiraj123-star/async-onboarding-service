@@ -3,22 +3,25 @@
 
 A high-performance, asynchronous user onboarding microservice built with **FastAPI**, **RabbitMQ**, **Celery**, and **Redis**.
 
-This project demonstrates how to offload heavy, time-consuming tasks to background workers, ensuring the API remains responsive while allowing the client to track progress.
+This project demonstrates how to offload heavy, time-consuming tasks (like PDF generation and email dispatching) to background workers, ensuring the API remains responsive while allowing the client to track progress via polling or monitoring tools.
 
 ## 🚀 The Architecture
 
-* **FastAPI:** The "Front Desk." Receives signups and provides status updates.
-* **RabbitMQ:** The "Message Broker." Safely queues onboarding tasks.
-* **Celery:** The "Worker." Handles heavy lifting with built-in **Exponential Backoff** retries.
-* **Redis:** The "Result Backend." Stores the final outcome and status of each task.
-* **Flower:** The "Control Tower." Real-time monitoring dashboard for task health.
-* **Kubernetes:** Production-ready orchestration using **Minikube**.
+* **FastAPI:** The "Front Desk." Handles incoming requests and status checks.
+* **RabbitMQ:** The "Message Broker." Decouples the API from heavy processing.
+* **Celery:** The "Worker." Executes background tasks with **Exponential Backoff** logic.
+* **Redis:** The "Result Backend." Manages task states and final outputs.
+* **Flower:** The "Control Tower." Provides a real-time web dashboard for task monitoring.
+* **Kubernetes (Minikube):** Production-grade orchestration with automated scaling and secret management.
+
+---
 
 ## 🛠️ Tech Stack
 
-* **Framework:** FastAPI
-* **Task Queue:** Celery (with `amqp` & `redis` transport)
-* **Infrastructure:** Docker, Docker Compose, & Kubernetes (k8s)
+* **Backend:** FastAPI, Python 3.11
+* **Task Management:** Celery 5.x
+* **Brokers/State:** RabbitMQ, Redis
+* **Containerization:** Docker, Kubernetes (k8s)
 * **Monitoring:** Flower
 
 ---
@@ -33,10 +36,12 @@ async-onboarding-service/
 ├── k8s/                   # Kubernetes Manifests
 │   ├── rabbitmq-deployment.yaml
 │   ├── redis-deployment.yaml
-│   └── app-deployment.yaml
+│   ├── app-deployment.yaml
+│   ├── flower-deployment.yaml
+│   └── onboarding-secrets.yaml # Encrypted Connection Strings
 ├── Dockerfile             # Unified environment for API/Worker
-├── docker-compose.yml     # 5-Service Orchestration (API, Worker, Redis, Rabbit, Flower)
-└── requirements.txt       # Dependencies
+├── docker-compose.yml     # Local orchestration
+└── requirements.txt       # Project dependencies
 
 ```
 
@@ -44,33 +49,50 @@ async-onboarding-service/
 
 ## 🏃 How to Run
 
-### Option A: Docker Compose (Local Development)
+### Option A: Docker Compose (Local Dev)
 
 ```bash
 docker-compose up --build
 
 ```
 
-* **API:** [http://localhost:8000/docs](https://www.google.com/search?q=http://localhost:8000/docs)
+* **Interactive Docs:** [http://localhost:8000/docs](https://www.google.com/search?q=http://localhost:8000/docs)
 * **Flower Dashboard:** [http://localhost:5555](https://www.google.com/search?q=http://localhost:5555)
 
 ### Option B: Kubernetes (Minikube)
 
+1. **Start and Build:**
 ```bash
 minikube start
 eval $(minikube docker-env)
 docker build -t async-app:latest .
+
+```
+
+
+2. **Deploy Manifests:**
+```bash
 kubectl apply -f k8s/
 
 ```
+
+
+3. **Access Services:**
+```bash
+minikube service api-service --url    # For the API
+minikube service flower-service --url # For Monitoring
+
+```
+
+
 
 ---
 
 ## 📝 Key Features
 
-* **Exponential Backoff Retries:** Tasks automatically retry on failure (e.g., API timeouts) with increasing wait times.
-* **Fault Tolerance:** Implemented `acks_late=True` to ensure tasks aren't lost if a worker crashes.
-* **Real-time Monitoring:** Integrated Flower to visualize task success rates and retry counts.
-* **K8s Ready:** Optimized manifests with Resource Limits and NodePort services.
+* **Exponential Backoff Retries:** Automatically handles transient errors (e.g., API timeouts) by retrying with increasing delays ( seconds).
+* **Security:** Uses **Kubernetes Secrets** to decouple sensitive connection strings from deployment logic.
+* **Fault Tolerance:** Uses `acks_late=True` and `track_started=True` for reliable task delivery even during worker crashes.
+* **Scalability:** Horizontal scaling supported via `kubectl scale deployment onboarding-worker --replicas=5`.
 
 ---
