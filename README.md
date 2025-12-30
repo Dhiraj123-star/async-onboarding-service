@@ -3,7 +3,7 @@
 
 A high-performance, asynchronous user onboarding microservice built with **FastAPI**, **RabbitMQ**, **Celery**, and **Redis**.
 
-This project demonstrates how to offload heavy, time-consuming tasks (like PDF generation and email dispatching) to background workers, ensuring the API remains responsive while allowing the client to track progress via polling or monitoring tools.
+This project demonstrates how to offload heavy, time-consuming tasks (like PDF generation and email dispatching) to background workers, ensuring the API remains responsive while allowing the client to track progress.
 
 ## 🚀 The Architecture
 
@@ -11,8 +11,8 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 * **RabbitMQ:** The "Message Broker." Decouples the API from heavy processing.
 * **Celery:** The "Worker." Executes background tasks with **Exponential Backoff** logic.
 * **Redis:** The "Result Backend." Manages task states and final outputs.
-* **Flower:** The "Control Tower." Provides a real-time web dashboard for task monitoring.
-* **Kubernetes (Minikube):** Production-grade orchestration with automated scaling and secret management.
+* **Flower:** The "Control Tower." Real-time web dashboard for task monitoring.
+* **NGINX Ingress:** The "Gatekeeper." Routes traffic to the correct service via custom local domains.
 
 ---
 
@@ -22,7 +22,7 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 * **Task Management:** Celery 5.x
 * **Brokers/State:** RabbitMQ, Redis
 * **Containerization:** Docker, Kubernetes (k8s)
-* **Monitoring:** Flower
+* **Ingress:** NGINX Ingress Controller
 
 ---
 
@@ -32,14 +32,15 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 async-onboarding-service/
 ├── app/
 │   ├── main.py            # API Endpoints & Task Status Logic
-│   └── tasks.py           # Celery Worker, Retry Logic & Backend Config
+│   └── tasks.py           # Celery Worker & Retry Logic
 ├── k8s/                   # Kubernetes Manifests
 │   ├── rabbitmq-deployment.yaml
 │   ├── redis-deployment.yaml
 │   ├── app-deployment.yaml
 │   ├── flower-deployment.yaml
-│   └── onboarding-secrets.yaml # Encrypted Connection Strings
-├── Dockerfile             # Unified environment for API/Worker
+│   ├── onboarding-secrets.yaml # Encrypted Connection Strings
+│   └── ingress.yaml            # NGINX Routing Rules
+├── Dockerfile             # Unified image for API/Worker/Flower
 ├── docker-compose.yml     # Local orchestration
 └── requirements.txt       # Project dependencies
 
@@ -47,52 +48,47 @@ async-onboarding-service/
 
 ---
 
-## 🏃 How to Run
+## 🏃 How to Run (Kubernetes)
 
-### Option A: Docker Compose (Local Dev)
+### 1. Start and Build
 
-```bash
-docker-compose up --build
-
-```
-
-* **Interactive Docs:** [http://localhost:8000/docs](https://www.google.com/search?q=http://localhost:8000/docs)
-* **Flower Dashboard:** [http://localhost:5555](https://www.google.com/search?q=http://localhost:5555)
-
-### Option B: Kubernetes (Minikube)
-
-1. **Start and Build:**
 ```bash
 minikube start
+minikube addons enable ingress
 eval $(minikube docker-env)
 docker build -t async-app:latest .
 
 ```
 
+### 2. Deploy Infrastructure
 
-2. **Deploy Manifests:**
 ```bash
 kubectl apply -f k8s/
 
 ```
 
+### 3. Setup Local DNS
 
-3. **Access Services:**
-```bash
-minikube service api-service --url    # For the API
-minikube service flower-service --url # For Monitoring
+Map the Minikube IP to your custom domains in `/etc/hosts` (Linux/Mac) or `C:\Windows\System32\drivers\etc\hosts` (Windows):
+
+```text
+# Replace <MINIKUBE_IP> with output of 'minikube ip'
+<MINIKUBE_IP> api.onboarding.local flower.onboarding.local
 
 ```
 
+### 4. Access the Dashboard
 
+* **API Docs:** [http://api.onboarding.local/docs](https://www.google.com/search?q=http://api.onboarding.local/docs)
+* **Flower Monitor:** [http://flower.onboarding.local](https://www.google.com/search?q=http://flower.onboarding.local)
 
 ---
 
 ## 📝 Key Features
 
-* **Exponential Backoff Retries:** Automatically handles transient errors (e.g., API timeouts) by retrying with increasing delays ( seconds).
-* **Security:** Uses **Kubernetes Secrets** to decouple sensitive connection strings from deployment logic.
-* **Fault Tolerance:** Uses `acks_late=True` and `track_started=True` for reliable task delivery even during worker crashes.
-* **Scalability:** Horizontal scaling supported via `kubectl scale deployment onboarding-worker --replicas=5`.
+* **Exponential Backoff Retries:** Handles transient failures by retrying with increasing delays ( seconds).
+* **Ingress Routing:** Clean, production-like URLs using NGINX Ingress.
+* **Secure Config:** Sensitive URLs stored in **Kubernetes Secrets**.
+* **Fault Tolerance:** `acks_late=True` ensures tasks are re-queued if a worker pod is evicted.
 
 ---
