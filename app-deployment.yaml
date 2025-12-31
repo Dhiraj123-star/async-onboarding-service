@@ -20,13 +20,26 @@ spec:
           imagePullPolicy: Never
           ports:
           - containerPort: 8000
+          #  --- HEALTH CHECKS FOR API ---
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
-            requests:
-              memory: "64Mi"
-              cpu: "100m"
-            limits:
-              memory: "128Mi"
-              cpu: "500m"
+              requests:
+                memory: "64Mi"
+                cpu: "100m"
+              limits:
+                memory: "128Mi"
+                cpu: "500m"
           env:
           - name: CELERY_BROKER_URL
             valueFrom: 
@@ -71,6 +84,17 @@ spec:
         image: async-app:latest
         imagePullPolicy: Never
         command: ["celery","-A","app.tasks.celery_app","worker","--loglevel=info"]
+      # --- HEALTH CHECK FOR WORKER ---
+        livenessProbe:
+          exec:
+            command: ["celery","-A","app.tasks.celery_app","inspect","ping"]
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          exec:
+            command: ["celery","-A","app.tasks,celery_app","inspect","ping"]
+          initialDelaySeconds: 15
+          periodSeconds: 10
         resources:
           requests:
             memory: "64Mi"
@@ -80,6 +104,12 @@ spec:
             cpu: "500m"
         env:
         - name: CELERY_BROKER_URL
-          value: "pyamqp://guest@rabbitmq:5672//"
+          valueFrom:
+            secretKeyRef:
+              name: onboarding-config
+              key: broker-url
         - name: CELERY_RESULT_BACKEND
-          value: "redis://redis:6379/0"
+          valueFrom:
+            secretKeyRef:
+              name: onboarding-config
+              key: backend-url
