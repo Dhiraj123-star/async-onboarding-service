@@ -13,12 +13,13 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 * **Redis:** The "Result Backend." Manages task states and final outputs.
 * **Flower:** The "Control Tower." Real-time web dashboard for task monitoring.
 * **NGINX Ingress:** The "Gatekeeper." Routes traffic to the correct service via custom local domains.
+* **Self-Healing K8s:** Integrated Probes to monitor and recover unhealthy services automatically.
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Backend:** FastAPI, Python 3.11
+* **Backend:** FastAPI (Python 3.11)
 * **Task Management:** Celery 5.x
 * **Brokers/State:** RabbitMQ, Redis
 * **Containerization:** Docker, Kubernetes (k8s)
@@ -36,7 +37,7 @@ async-onboarding-service/
 ├── k8s/                   # Kubernetes Manifests
 │   ├── rabbitmq-deployment.yaml
 │   ├── redis-deployment.yaml
-│   ├── app-deployment.yaml
+│   ├── app-deployment.yaml     # Includes Liveness/Readiness Probes
 │   ├── flower-deployment.yaml
 │   ├── onboarding-secrets.yaml # Encrypted Connection Strings
 │   └── ingress.yaml            # NGINX Routing Rules
@@ -69,7 +70,7 @@ kubectl apply -f k8s/
 
 ### 3. Setup Local DNS
 
-Map the Minikube IP to your custom domains in `/etc/hosts` (Linux/Mac) or `C:\Windows\System32\drivers\etc\hosts` (Windows):
+Map the Minikube IP to your custom domains in your system's `hosts` file:
 
 ```text
 # Replace <MINIKUBE_IP> with output of 'minikube ip'
@@ -86,9 +87,10 @@ Map the Minikube IP to your custom domains in `/etc/hosts` (Linux/Mac) or `C:\Wi
 
 ## 📝 Key Features
 
-* **Exponential Backoff Retries:** Handles transient failures by retrying with increasing delays ( seconds).
+* **Self-Healing (Liveness/Readiness):** Kubernetes automatically restarts containers if the API hangs or the Worker loses its RabbitMQ connection.
+* **Exponential Backoff Retries:** Handles transient failures by retrying tasks with increasing delays ( seconds).
 * **Ingress Routing:** Clean, production-like URLs using NGINX Ingress.
-* **Secure Config:** Sensitive URLs stored in **Kubernetes Secrets**.
-* **Fault Tolerance:** `acks_late=True` ensures tasks are re-queued if a worker pod is evicted.
+* **Secure Config:** Sensitive URLs and credentials managed via **Kubernetes Secrets**.
+* **Fault Tolerance:** `acks_late=True` ensures tasks are re-queued if a worker pod is evicted or crashes.
 
 ---
