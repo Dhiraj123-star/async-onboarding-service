@@ -26,3 +26,6 @@ celerybeat-schedule
 .DS_Store
 Thumbs.db
 
+# Certs
+*.crt
+*.key   
