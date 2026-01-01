@@ -12,8 +12,8 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 * **Celery:** The "Worker." Executes background tasks with **Exponential Backoff** logic.
 * **Redis:** The "Result Backend." Manages task states and final outputs.
 * **Flower:** The "Control Tower." Real-time web dashboard for task monitoring.
-* **NGINX Ingress:** The "Gatekeeper." Routes traffic to the correct service via custom local domains.
-* **Self-Healing K8s:** Integrated Probes to monitor and recover unhealthy services automatically.
+* **NGINX Ingress:** The "Gatekeeper." Routes traffic and manages **SSL/TLS termination**.
+* **Self-Healing K8s:** Integrated **Liveness and Readiness Probes** to monitor and recover unhealthy services automatically.
 
 ---
 
@@ -23,6 +23,7 @@ This project demonstrates how to offload heavy, time-consuming tasks (like PDF g
 * **Task Management:** Celery 5.x
 * **Brokers/State:** RabbitMQ, Redis
 * **Containerization:** Docker, Kubernetes (k8s)
+* **Security:** OpenSSL (Self-signed TLS), K8s Secrets
 * **Ingress:** NGINX Ingress Controller
 
 ---
@@ -37,10 +38,11 @@ async-onboarding-service/
 ├── k8s/                   # Kubernetes Manifests
 │   ├── rabbitmq-deployment.yaml
 │   ├── redis-deployment.yaml
-│   ├── app-deployment.yaml     # Includes Liveness/Readiness Probes
+│   ├── app-deployment.yaml     # API & Worker with Health Probes
 │   ├── flower-deployment.yaml
 │   ├── onboarding-secrets.yaml # Encrypted Connection Strings
-│   └── ingress.yaml            # NGINX Routing Rules
+│   ├── onboarding-tls-secret.yaml # TLS Certificates
+│   └── ingress.yaml            # NGINX Routing with HTTPS Config
 ├── Dockerfile             # Unified image for API/Worker/Flower
 ├── docker-compose.yml     # Local orchestration
 └── requirements.txt       # Project dependencies
@@ -61,14 +63,27 @@ docker build -t async-app:latest .
 
 ```
 
-### 2. Deploy Infrastructure
+### 2. Security Setup (SSL/TLS)
+
+Generate a self-signed certificate and create the Kubernetes secret:
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout onboarding.key -out onboarding.crt \
+  -subj "/CN=api.onboarding.local"
+
+kubectl create secret tls onboarding-tls-secret --key onboarding.key --cert onboarding.crt
+
+```
+
+### 3. Deploy Infrastructure
 
 ```bash
 kubectl apply -f k8s/
 
 ```
 
-### 3. Setup Local DNS
+### 4. Setup Local DNS
 
 Map the Minikube IP to your custom domains in your system's `hosts` file:
 
@@ -78,19 +93,19 @@ Map the Minikube IP to your custom domains in your system's `hosts` file:
 
 ```
 
-### 4. Access the Dashboard
+### 5. Access the Dashboard (HTTPS)
 
-* **API Docs:** [http://api.onboarding.local/docs](https://www.google.com/search?q=http://api.onboarding.local/docs)
-* **Flower Monitor:** [http://flower.onboarding.local](https://www.google.com/search?q=http://flower.onboarding.local)
+* **Secure API Docs:** [https://api.onboarding.local/docs](https://www.google.com/search?q=https://api.onboarding.local/docs)
+* **Secure Flower Monitor:** [https://flower.onboarding.local](https://www.google.com/search?q=https://flower.onboarding.local)
 
 ---
 
 ## 📝 Key Features
 
-* **Self-Healing (Liveness/Readiness):** Kubernetes automatically restarts containers if the API hangs or the Worker loses its RabbitMQ connection.
-* **Exponential Backoff Retries:** Handles transient failures by retrying tasks with increasing delays ( seconds).
-* **Ingress Routing:** Clean, production-like URLs using NGINX Ingress.
-* **Secure Config:** Sensitive URLs and credentials managed via **Kubernetes Secrets**.
-* **Fault Tolerance:** `acks_late=True` ensures tasks are re-queued if a worker pod is evicted or crashes.
+* **HTTPS/TLS Encryption:** Secure communication via self-signed certificates managed by NGINX Ingress.
+* **Self-Healing (Probes):** Kubernetes automatically detects process hangs or connection losses and restarts pods to maintain 99.9% availability.
+* **Exponential Backoff Retries:** Intelligent task retries ( seconds) to handle transient downstream failures.
+* **Secure Config:** Decoupled sensitive credentials using **Kubernetes Secrets**.
+* **Fault Tolerance:** Configured `acks_late=True` to prevent task loss during unexpected worker evictions.
 
 ---
