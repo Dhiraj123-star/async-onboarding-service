@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: flower
-          image: async-app:latest
-          imagePullPolicy: Never
+          image: dhiraj918106/async-app:latest
+          imagePullPolicy: Always
           # command to start flower pointing to our app
           command: ["celery","-A","app.tasks.celery_app","flower","--port=5555"]
           ports:
